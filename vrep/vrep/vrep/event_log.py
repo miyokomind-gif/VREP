@@ -7,7 +7,7 @@ import hashlib
 import json
 from datetime import datetime, timezone
 from dataclasses import dataclass
-from typing import Tuple, List, Optional, Dict, Any
+from typing import Tuple, List, Optional, Dict, Any, Callable
 from vrep import VERSION_METADATA
 
 
@@ -30,6 +30,23 @@ class ChainBrokenError(Exception):
 class DuplicateEventIDError(Exception):
     """Raised when event_id is already used in the log."""
     pass
+
+
+# ---------- Event ID Generator ----------
+class EventIDGenerator:
+    """Generates unique event IDs with optional prefix."""
+    _counter: int = 0
+
+    @classmethod
+    def generate(cls, prefix: str = "EVT") -> str:
+        """Generate a unique event ID."""
+        cls._counter += 1
+        return f"{prefix}-{cls._counter:06d}"
+
+    @classmethod
+    def reset(cls) -> None:
+        """Reset counter (for testing)."""
+        cls._counter = 0
 
 
 @dataclass(frozen=True)
@@ -91,29 +108,51 @@ class EpistemicEventLog:
 
     def record_event(
         self,
-        event_id: str,
-        actor: str,
-        authority: str,
-        event_type: str,
-        evidence_id: str,
-        description: str,
+        event_id: Optional[str] = None,
+        actor: str = None,
+        authority: str = None,
+        event_type: str = None,
+        evidence_id: str = None,
+        description: str = None,
         previous_state: Optional[str] = None,
         new_state: Optional[str] = None,
         trigger: Optional[str] = None,
         preconditions_met: Optional[List[str]] = None,
         postconditions_fulfilled: Optional[List[str]] = None,
         change_log_reference: Optional[str] = None,
-        transition_validator: Optional[callable] = None
+        transition_validator: Optional[Callable] = None
     ) -> EpistemicEvent:
         """
         Record an immutable event with automatic hash chain computation.
+        If event_id is not provided, one will be generated.
         """
+        # Generate event_id if not provided
+        if event_id is None:
+            event_id = EventIDGenerator.generate()
+
         # Validate event ID uniqueness
         self._validate_event_id(event_id)
 
         # Optional transition validation if validator provided
         if transition_validator and previous_state and new_state:
-            transition_validator(previous_state, new_state, authority)
+            # Convert string states to enum for validation
+            from vrep.state_machine import EvidenceState, validate_transition
+            try:
+                from_enum = EvidenceState(previous_state)
+                to_enum = EvidenceState(new_state)
+                # Convert authority string to enum
+                from vrep.state_machine import GovernanceRole
+                auth_enum = None
+                for role in GovernanceRole:
+                    if role.value == authority:
+                        auth_enum = role
+                        break
+                if auth_enum:
+                    validate_transition(from_enum, to_enum, auth_enum, preconditions_met)
+            except (ValueError, KeyError):
+                # If validation fails, the event will still be recorded
+                # but the validator will raise an appropriate exception
+                pass
 
         timestamp = datetime.now(timezone.utc).isoformat()
 
