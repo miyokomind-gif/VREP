@@ -15,16 +15,17 @@ VREP is an epistemic governance protocol for managing the lifecycle of scientifi
 - Immutable event log with tamper-evident hash chain
 - Event sourcing architecture (Event Log as Single Source of Truth)
 - Registry layer with fingerprint-based lookup
-- Conformance Test Suite (CTS-001 to CTS-014)
+- Conformance Test Suite (CTS-001 to CTS-017)
 
 ---
 
 ## Project Status
 
-- Reference Implementation: v0.2.0 (Stable)
-- Specification: 1.2.0-draft
-- Architectural State: Frozen
-- Production Profile: Not yet implemented (Ed25519, REST/gRPC, persistence)
+- **Reference Implementation:** v0.2.0 (Stable)
+- **Specification:** 1.2.0-draft
+- **Architectural State:** Frozen
+- **Production Profile:** Planned (Ed25519, REST/gRPC, persistence)
+- **Canonical JSON:** Current implementation uses `sort_keys` + `separators`. Full RFC 8785 compliance is planned for the Production Profile.
 
 ---
 
@@ -49,11 +50,17 @@ Python 3.9 or higher (standard library only)
 ```bash
 git clone https://github.com/YOUR-USERNAME/VREP.git
 cd VREP
-
 ```
+
 Run the Demo
-python examples/cal001_demo.py
+
+```bash
+python examples/cal001_end_to_end.py
+```
+
 Basic Usage
+
+```python
 from vrep.identity import EvidenceIdentityGenerator
 from vrep.event_log import EpistemicEventLog
 from vrep.registry import EvidenceRegistry
@@ -71,16 +78,25 @@ metadata = {
 identity = generator.generate_evidence_id(metadata)
 registry.register(identity)
 
-event_log.append_event(
-    "EVT-001", "Researcher", "Researcher",
-    "Discovery", identity["authoritative_identifier"]["evidence_id"],
-    "Record created", None, "Candidate"
+event_log.record_event(
+    event_id=None,  # auto-generated
+    actor="Researcher",
+    authority="Researcher",
+    event_type="Discovery",
+    evidence_id=identity["authoritative_identifier"]["evidence_id"],
+    description="Record created",
+    previous_state=None,
+    new_state="Candidate"
 )
 
 projection = registry.get_projected_state(
     identity["authoritative_identifier"]["evidence_id"]
 )
 print(projection.current_state.value)  # Candidate
+```
+
+---
+
 Conformance Test Suite (CTS)
 
 The test suite covers:
@@ -88,10 +104,15 @@ The test suite covers:
 · CTS-005 to CTS-008: Immutability, version metadata, timezone awareness
 · CTS-009 to CTS-011: Duplicate protection, chain integrity, tamper detection
 · CTS-012 to CTS-014: Fingerprint lookup, replay determinism, import verification
+· CTS-015 to CTS-017: Large replay, malformed JSON, unknown schema version
 
 To run the tests:
-python tests/test_cts.py
-Reference CTS Suite: CTS-001 to CTS-014.
+
+```bash
+pytest tests/test_cts.py -v
+```
+
+Reference CTS Suite: CTS-001 to CTS-017.
 
 ---
 
@@ -100,9 +121,8 @@ Disclaimer
 VREP is an independent research protocol and reference implementation. It is not currently an official standard of ISO, IEEE, W3C, or any governmental standards body.
 
 ---
+
 License
 
 Distributed under the MIT License. See LICENSE file for details.
-
-```
 
