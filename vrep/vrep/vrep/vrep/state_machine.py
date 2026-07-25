@@ -1,8 +1,10 @@
 """
 VREP Transition Validator (Policy Engine)
 Implements transition validation per VREP Specification 1.2.0-draft
-Design Note: This is a stateless validator, not a state holder.
-The current state is derived from the Event Log via projection (Event Sourcing).
+
+Design Note: This is a STATELESS validator. It does NOT store current_state.
+State is derived exclusively from Event Log via Projection (Event Sourcing).
+This aligns with INV-01 (Single Source of Truth) and INV-05 (Deterministic Projection).
 """
 
 from enum import Enum
