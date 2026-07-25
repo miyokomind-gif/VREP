@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "If you use VREP in your research, please cite this software using the metadata below."
+title: "VREP — Verified Research Evidence Protocol"
+version: "0.2.0"
+date-released: 2026-07-25
+license: "MIT"
+
+authors:
+  - family-names: "HAFSI"
+    given-names: "Nassima Amel"
+    email: "hafsi.nassima@edu.univ-oran1.dz"
+
+repository-code: "https://github.com/miyokomind-gif/VREP"
+url: "https://github.com/miyokomind-gif/VREP"
+abstract: "VREP is an epistemic governance protocol for managing the lifecycle of scientific evidence. It provides cryptographic identity, immutable event logging with tamper-evident hash chains, and a conformance test suite."
+
+keywords:
+  - "research governance"
+  - "epistemic protocol"
+  - "event sourcing"
+  - "cryptographic hash chain"
+  - "scientific evidence"
+
+preferred-citation:
+  type: "software"
+  title: "VREP — Verified Research Evidence Protocol"
+  version: "0.2.0"
+  date-released: 2026-07-25
+  license: "MIT"
+  authors:
+    - family-names: "HAFSI"
+      given-names: "Nassima Amel"
+      email: "hafsi.nassima@edu.univ-oran1.dz"
