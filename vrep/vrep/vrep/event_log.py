@@ -7,8 +7,25 @@ import hashlib
 import json
 from datetime import datetime, timezone
 from dataclasses import dataclass
-from typing import Tuple, List, Optional, Dict, Any, Callable
+from typing import Tuple, List, Optional, Dict, Any
 from vrep import VERSION_METADATA
+
+
+# ---------- Event ID Generator ----------
+class EventIDGenerator:
+    """Generates unique event IDs with optional prefix."""
+    _counter: int = 0
+
+    @classmethod
+    def generate(cls, prefix: str = "EVT") -> str:
+        """Generate a unique event ID."""
+        cls._counter += 1
+        return f"{prefix}-{cls._counter:06d}"
+
+    @classmethod
+    def reset(cls) -> None:
+        """Reset counter (for testing)."""
+        cls._counter = 0
 
 
 # ---------- Standard Exceptions ----------
@@ -32,23 +49,6 @@ class DuplicateEventIDError(Exception):
     pass
 
 
-# ---------- Event ID Generator ----------
-class EventIDGenerator:
-    """Generates unique event IDs with optional prefix."""
-    _counter: int = 0
-
-    @classmethod
-    def generate(cls, prefix: str = "EVT") -> str:
-        """Generate a unique event ID."""
-        cls._counter += 1
-        return f"{prefix}-{cls._counter:06d}"
-
-    @classmethod
-    def reset(cls) -> None:
-        """Reset counter (for testing)."""
-        cls._counter = 0
-
-
 @dataclass(frozen=True)
 class EpistemicEvent:
     """Immutable event record."""
@@ -65,9 +65,9 @@ class EpistemicEvent:
     preconditions_met: Tuple[str, ...]
     postconditions_fulfilled: Tuple[str, ...]
     change_log_reference: Optional[str]
-    event_hash: str  # hex digest only (without algorithm prefix)
-    previous_hash: str  # hex digest only
-    hash_algorithm: str  # e.g., "SHA-256"
+    event_hash: str
+    previous_hash: str
+    hash_algorithm: str
     implementation_version: str
     specification_version: str
     schema_version: str
@@ -82,8 +82,8 @@ class EpistemicEventLog:
 
     def __init__(self):
         self._events: List[EpistemicEvent] = []
-        self._last_event_hash = "0" * 64  # Genesis hash
-        self._event_ids: set = set()  # Track used event IDs
+        self._last_event_hash = "0" * 64
+        self._event_ids: set = set()
 
     def _compute_event_hash(self, event_data: dict, previous_hash: str) -> str:
         """
@@ -108,23 +108,23 @@ class EpistemicEventLog:
 
     def record_event(
         self,
-        event_id: Optional[str] = None,
-        actor: str = None,
-        authority: str = None,
-        event_type: str = None,
-        evidence_id: str = None,
-        description: str = None,
+        event_id: Optional[str],
+        actor: str,
+        authority: str,
+        event_type: str,
+        evidence_id: str,
+        description: str,
         previous_state: Optional[str] = None,
         new_state: Optional[str] = None,
         trigger: Optional[str] = None,
         preconditions_met: Optional[List[str]] = None,
         postconditions_fulfilled: Optional[List[str]] = None,
         change_log_reference: Optional[str] = None,
-        transition_validator: Optional[Callable] = None
+        transition_validator: Optional[callable] = None
     ) -> EpistemicEvent:
         """
         Record an immutable event with automatic hash chain computation.
-        If event_id is not provided, one will be generated.
+        If event_id is not provided, one will be generated automatically.
         """
         # Generate event_id if not provided
         if event_id is None:
@@ -135,24 +135,7 @@ class EpistemicEventLog:
 
         # Optional transition validation if validator provided
         if transition_validator and previous_state and new_state:
-            # Convert string states to enum for validation
-            from vrep.state_machine import EvidenceState, validate_transition
-            try:
-                from_enum = EvidenceState(previous_state)
-                to_enum = EvidenceState(new_state)
-                # Convert authority string to enum
-                from vrep.state_machine import GovernanceRole
-                auth_enum = None
-                for role in GovernanceRole:
-                    if role.value == authority:
-                        auth_enum = role
-                        break
-                if auth_enum:
-                    validate_transition(from_enum, to_enum, auth_enum, preconditions_met)
-            except (ValueError, KeyError):
-                # If validation fails, the event will still be recorded
-                # but the validator will raise an appropriate exception
-                pass
+            transition_validator(previous_state, new_state, authority)
 
         timestamp = datetime.now(timezone.utc).isoformat()
 
@@ -179,7 +162,7 @@ class EpistemicEventLog:
         # Create immutable event
         event = EpistemicEvent(
             **event_data,
-            event_hash=event_hash,  # hex digest only
+            event_hash=event_hash,
             previous_hash=self._last_event_hash,
             hash_algorithm="SHA-256"
         )
@@ -299,5 +282,4 @@ class EpistemicEventLog:
     @classmethod
     def from_json(cls, json_str: str) -> "EpistemicEventLog":
         """Import Event Log from JSON (planned for v0.3)."""
-        # Implementation for future version
         raise NotImplementedError("Import from JSON will be available in v0.3")
